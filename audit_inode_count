@@ -1,44 +1,62 @@
-#!/bin/bash 
+#!/bin/bash
 
 #############################################
-# Reports the number of inodes in each 
+# Reports the number of inodes in each
 # subfolder of the target folder
 #############################################
 
-# Set colors
+module load parallel/20201022
+
+# Set colors for output
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
-# Default is present working directory otherwise first argument
+# Default is the present working directory; otherwise, use the first argument
 ROOT_FOLDER=${1:-.}
 
-# Find and save all subfolders of ROOT_FOLDER
+# Find and save all subfolders of ROOT_FOLDER, sorting them
 FIND=$(find "${ROOT_FOLDER}" -mindepth 1 -maxdepth 1 -type d -printf "%f,%TY-%Tm-%Td,%u\n" | sort )
 
-for i in ${FIND}; do
+# Function to process each folder
+process_folder() {
+    local entry="$1"
+    IFS=',' read -r FOLDER DATE USER <<< "$entry" # Split the entry into FOLDER, DATE, and USER
+    COMMENT=""
+    
+    # Count the number of inodes (files) in the folder
+    INODES=$(find "${ROOT_FOLDER}/${FOLDER}" 2>/dev/null | wc -l)
 
-	IFS=',' read -r FOLDER DATE USER <<< ${i}
-	COMMENT=""
-	INODES=$(find "${ROOT_FOLDER}/${FOLDER}" | wc -l)
-	
-	if [[ ${USER} =~ ^[0-9]+$ ]]; then
-		UCOLOR=${RED}
-		COMMENT+="[deactivated user]"
-	else 
-		UCOLOR=${NC}
-	fi
+    # Check if the user is deactivated (user ID is numeric)
+    if [[ ${USER} =~ ^[0-9]+$ ]]; then
+        UCOLOR=${RED}
+        COMMENT+="[deactivated user]"
+    else
+        UCOLOR=${NC}
+    fi
 
-	((diff=$(date +%s)-$(date -d ${DATE} +%s)))
-	((days=${diff}/(60*60*24)))
-	
-	if [ $days -ge 730 ]; then
-		DCOLOR=${RED}
-		COMMENT+="[2 years old]"
-	else 
-		DCOLOR=${NC}
-	fi
-	
-	echo -e "${ROOT_FOLDER}/${FOLDER},${INODES},${USER},${DATE},${COMMENT}"
+    # Calculate the age of the folder in days
+    ((diff=$(date +%s)-$(date -d ${DATE} +%s)))
+    ((days=${diff}/(60*60*24)))
 
-done | sort -k 2 -n -t',' -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
+    # Mark folders older than 2 years
+    if [ $days -ge 730 ]; then
+        DCOLOR=${RED}
+        COMMENT+="[2 years old]"
+    else
+        DCOLOR=${NC}
+    fi
+
+    # Print the folder information
+    echo -e "${ROOT_FOLDER}/${FOLDER},${INODES},${USER},${DATE},${COMMENT}"
+}
+
+# Export the function and variables for use in GNU Parallel
+export -f process_folder
+export ROOT_FOLDER
+export RED
+export NC
+
+# Use GNU Parallel to process each folder in parallel
+echo "${FIND}" | parallel --will-cite -j 10 process_folder {} | sort -k 2 -n -t',' -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
+
