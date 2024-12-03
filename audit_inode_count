@@ -1,0 +1,44 @@
+#!/bin/bash 
+
+#############################################
+# Reports the number of inodes in each 
+# subfolder of the target folder
+#############################################
+
+# Set colors
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+# Default is present working directory otherwise first argument
+ROOT_FOLDER=${1:-.}
+
+# Find and save all subfolders of ROOT_FOLDER
+FIND=$(find "${ROOT_FOLDER}" -mindepth 1 -maxdepth 1 -type d -printf "%f,%TY-%Tm-%Td,%u\n" | sort )
+
+for i in ${FIND}; do
+
+	IFS=',' read -r FOLDER DATE USER <<< ${i}
+	COMMENT=""
+	INODES=$(find "${ROOT_FOLDER}/${FOLDER}" | wc -l)
+	
+	if [[ ${USER} =~ ^[0-9]+$ ]]; then
+		UCOLOR=${RED}
+		COMMENT+="[deactivated user]"
+	else 
+		UCOLOR=${NC}
+	fi
+
+	((diff=$(date +%s)-$(date -d ${DATE} +%s)))
+	((days=${diff}/(60*60*24)))
+	
+	if [ $days -ge 730 ]; then
+		DCOLOR=${RED}
+		COMMENT+="[2 years old]"
+	else 
+		DCOLOR=${NC}
+	fi
+	
+	echo -e "${ROOT_FOLDER}/${FOLDER},${INODES},${USER},${DATE},${COMMENT}"
+
+done | sort -k 2 -n -t',' -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
