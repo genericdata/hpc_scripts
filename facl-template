@@ -1,0 +1,90 @@
+#!/bin/bash
+
+
+# Set PERMISSIONS based on the script name
+if [[ "${0,,}" == *"read"* ]]; then 
+    PERMISSIONS="r-X"
+    TYPE="read"
+elif [[ "${0,,}" == *"write"* ]]; then 
+    PERMISSIONS="rwX" 
+    TYPE="write"
+else 
+    echo "Script name must contain 'read' or 'write' to set permissions." 
+    exit 1 
+fi
+
+
+# Function to print usage
+print_usage() {
+    echo "Usage: $(basename $0) [-h] [USER] [DIR]"
+    echo "  -h    Display this help message"
+    echo "  USER  The user to set ACL for (default: netID)"
+    echo "  DIR   The directory to set ACL on (default: current directory)"
+}
+
+# Check if -h is passed
+if [ "$1" == "-h" ]; then
+    print_usage
+    exit 0
+fi
+
+# Check if only one argument is passed
+if [ $# -eq 1 ]; then
+    if [[ "$1" == /* ]]; then
+        DIR="$1"
+        USER="netID"
+    else
+        USER="$1"
+        DIR=$(pwd)
+    fi
+else
+    USER=${1:-"netID"}
+    DIR=${2:-$(pwd)}
+fi
+
+# Convert DIR to $(pwd) if it equals '.'
+if [ "$DIR" == "." ]; then
+    DIR=$(pwd)
+fi
+
+# Verify if the user is valid or "netID"
+if ! id "$USER" &>/dev/null && [ "$USER" != "netID" ]; then
+    echo "User $USER does not exist'."
+    echo ""
+    print_usage
+    exit 1
+fi
+
+# Ensure DIR is a full path
+if [[ "$DIR" != /* ]]; then
+    echo "DIR must be a full path."
+    echo ""
+    print_usage
+    exit 1
+fi
+
+# Function to set ACL for parent directories
+set_acl() {
+    local user=$1
+    local dir=$2
+    local parent_dir
+
+    while [[ "$dir" != "/" ]]; do
+        parent_dir=$(dirname "$dir")
+        if [[ "$(dirname $parent_dir)" == "/" ]]; then
+            break
+        fi
+        echo "  setfacl -m u:$user:--X $parent_dir"
+        dir=$parent_dir
+    done
+}
+
+# Print the setfacl command for the current directory
+echo "# Give ${TYPE} access to the current directory and everything within"
+echo "  setfacl -R -m u:${USER}:${PERMISSIONS},d:u:${USER}:${PERMISSIONS} ${DIR}"
+echo ""
+echo "# Give only execute access to the parent directories to get to target directory"
+
+# Set ACL for parent directories dynamically
+set_acl "${USER}" "${DIR}"
+
