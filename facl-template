@@ -80,10 +80,10 @@ set_acl() {
 }
 
 # Print the setfacl command for the current directory
-echo "# Give ${TYPE} access to the current directory and everything within"
+echo "# Grant ${TYPE} access to the current directory and everything within"
 echo "  setfacl -R -m u:${USER}:${PERMISSIONS},d:u:${USER}:${PERMISSIONS} ${DIR}"
 echo ""
-echo "# Give only execute access to the parent directories to get to target directory"
+echo "# Grant only navigation permissions to the parent directories"
 
 # Set ACL for parent directories dynamically
 set_acl "${USER}" "${DIR}"
