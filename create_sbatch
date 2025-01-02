@@ -1,25 +1,24 @@
 #!/bin/bash
 
-
 # Initialize our own variables:
 output_file=""
 verbose=0
 gpu=0
 
 while getopts "h?vg" opt; do
-    case "$opt" in
+  case "$opt" in
     h|\?)
-        echo "Usage: $0 [-v] [-g] filename" 
-	echo "Create a basic SBATCH template"
-        echo "    -g              GPU - add line to request GPUs"
-        echo "    -v              verbose - prints definitions and descriptions for each option"
-	exit 0
-        ;;
+      echo "Usage: $0 [-v] [-g] filename" 
+      echo "Create a basic SBATCH template"
+      echo "    -g              GPU - add line to request GPUs"
+      echo "    -v              verbose - prints definitions and descriptions for each option"
+      exit 0
+      ;;
     v)  verbose=1
-        ;;
+      ;;
     g)  gpu=1
-        ;;
-    esac
+      ;;
+  esac
 done
 
 shift $((OPTIND-1))
@@ -27,7 +26,7 @@ shift $((OPTIND-1))
 output=$@
 
 function default {
-echo "#!/bin/bash -e
+  echo "#!/bin/bash -e
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -38,17 +37,17 @@ echo "#!/bin/bash -e
 #SBATCH --mail-type=END
 #SBATCH --output=slurm_%j.out" > ./$output.SBATCH
 
-if [ "$gpu" == 1 ]; then
-	echo "#SBATCH --gres=gpu:1">> ./$output.SBATCH
-fi
+  if [ "$gpu" == 1 ]; then
+    echo "#SBATCH --gres=gpu:1">> ./$output.SBATCH
+  fi
 
-echo "
+  echo "
 module purge" >> ./$output.SBATCH
 }
 
 function verbose {
-echo "in ver"
-echo "#!/bin/bash -e
+  echo "in ver"
+  echo "#!/bin/bash -e
 # This line tells the shell how to execute this script, and is unrelated
 # to SLURM.
    
@@ -82,11 +81,11 @@ echo "#!/bin/bash -e
 # have a name like slurm_12345.out
 #SBATCH --output=slurm_%j.out" > ./$output.SBATCH 
 
-if [ "$gpu" == 1 ]; then
-echo "#SBATCH --gres=gpu:1" >> ./$output.SBATCH                                  
-fi  
+  if [ "$gpu" == 1 ]; then
+    echo "#SBATCH --gres=gpu:1" >> ./$output.SBATCH                                  
+  fi  
 
-echo "
+  echo "
 # once the first non-comment, non-SBATCH-directive line is encountered, SLURM
 # stops looking for SBATCH directives. The remainder of the script is  executed
 # as a normal Unix shell script
@@ -101,7 +100,7 @@ module purge
 }
 
 if [ "$verbose" == 1 ]; then 
-	verbose
+  verbose
 else
-	default
+  default
 fi
