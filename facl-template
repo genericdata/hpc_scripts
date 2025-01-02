@@ -20,7 +20,7 @@
 
 # Function to print usage
 print_usage() {
-    echo "Grant ${TYPE} (${PERMISSIONS}) access to the current directory and everything within"
+    echo "Grant ${TYPE} (${PERMISSIONS}) access to the current directory recursively"
     echo " and navigation permissions (--X) to the parent directories"
     echo ""
     echo "Usage: $(basename $0) [-h] [USER] [DIR]"
