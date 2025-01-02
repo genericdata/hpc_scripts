@@ -1,7 +1,35 @@
 #!/bin/bash
 
+# Prints to terminal the `setfacl` commands for a specified user on a given directory and its parent directories. 
 
-# Set PERMISSIONS based on the script name
+## EXAMPLE OUTPUT ####################################################
+## # Grant write access to the current directory and everything within
+##   setfacl -R -m u:netID:rwX,d:u:netID:rwX /scratch/path/to/the/folder
+## # Grant only navigation permissions to the parent directories
+##   setfacl -m u:netID:--X /scratch/path/to/the
+##   setfacl -m u:netID:--X /scratch/path/to
+##   setfacl -m u:netID:--X /scratch/path
+######################################################################
+
+# Administrators: 
+ # Create two softlinks, one name containing "read" and the other "write" (case-insensitive). 
+ # Permissions will be configured based on detected script name.
+ # If "read" is found, it sets PERMISSIONS to r-X and TYPE to read.
+ # If "write" is found, it sets PERMISSIONS to rwX and TYPE to write.
+ # If neither is found, it prints an error message and exits.
+
+# Function to print usage
+print_usage() {
+    echo "Grant ${TYPE} (${PERMISSIONS}) access to the current directory and everything within"
+    echo " and navigation permissions (--X) to the parent directories"
+    echo ""
+    echo "Usage: $(basename $0) [-h] [USER] [DIR]"
+    echo "  -h    Display this help message"
+    echo "  USER  The user to set ACL for (default: netID)"
+    echo "  DIR   The directory to set ACL on (default: current directory)"
+}
+
+# Set PERMISSIONS and TYPE based on the script name
 if [[ "${0,,}" == *"read"* ]]; then 
     PERMISSIONS="r-X"
     TYPE="read"
@@ -12,15 +40,6 @@ else
     echo "Script name must contain 'read' or 'write' to set permissions." 
     exit 1 
 fi
-
-
-# Function to print usage
-print_usage() {
-    echo "Usage: $(basename $0) [-h] [USER] [DIR]"
-    echo "  -h    Display this help message"
-    echo "  USER  The user to set ACL for (default: netID)"
-    echo "  DIR   The directory to set ACL on (default: current directory)"
-}
 
 # Check if -h is passed
 if [ "$1" == "-h" ]; then
@@ -80,7 +99,7 @@ set_acl() {
 }
 
 # Print the setfacl command for the current directory
-echo "# Grant ${TYPE} access to the current directory and everything within"
+echo "# Grant ${TYPE} (${PERMISSIONS}) access to the current directory and everything within"
 echo "  setfacl -R -m u:${USER}:${PERMISSIONS},d:u:${USER}:${PERMISSIONS} ${DIR}"
 echo ""
 echo "# Grant only navigation permissions to the parent directories"
