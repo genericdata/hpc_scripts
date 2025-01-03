@@ -46,7 +46,6 @@ module purge" >> ./$output.SBATCH
 }
 
 function verbose {
-  echo "in ver"
   echo "#!/bin/bash -e
 # This line tells the shell how to execute this script, and is unrelated
 # to SLURM.
