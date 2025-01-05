@@ -13,7 +13,7 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 # Default is the present working directory; otherwise, use the first argument
-ROOT_FOLDER=${1:-.}
+ROOT_FOLDER=$(echo "${1:-.}" | sed 's:/*$::')
 
 # Validate that ROOT_FOLDER is a valid directory
 if [ ! -d "$ROOT_FOLDER" ]; then
