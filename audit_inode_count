@@ -15,8 +15,14 @@ NC='\033[0m' # No Color
 # Default is the present working directory; otherwise, use the first argument
 ROOT_FOLDER=${1:-.}
 
+# Validate that ROOT_FOLDER is a valid directory
+if [ ! -d "$ROOT_FOLDER" ]; then
+    echo -e "${RED}Error:${NC} $ROOT_FOLDER is not a valid directory"
+    exit 1
+fi
+
 # Find and save all subfolders of ROOT_FOLDER, sorting them
-FIND=$(find "${ROOT_FOLDER}" -mindepth 1 -maxdepth 1 -type d -printf "%f,%TY-%Tm-%Td,%u\n" | sort )
+FIND=$(find "${ROOT_FOLDER}" -mindepth 1 -maxdepth 1 -type d -printf "%f,%TY-%Tm-%Td,%u\n" | sort)
 
 # Function to process each folder
 process_folder() {
@@ -36,15 +42,21 @@ process_folder() {
     fi
 
     # Calculate the age of the folder in days
-    ((diff=$(date +%s)-$(date -d ${DATE} +%s)))
-    ((days=${diff}/(60*60*24)))
+    if [[ -n "$DATE" ]]; then
+        FOLDER_DATE=$(date -d "$DATE" +%s 2>/dev/null || echo "0")
+        if [[ $FOLDER_DATE -ne 0 ]]; then
+            CURRENT_DATE=$(date +%s)
+            ((diff=CURRENT_DATE-FOLDER_DATE))
+            ((days=diff/(60*60*24)))
 
-    # Mark folders older than 2 years
-    if [ $days -ge 730 ]; then
-        DCOLOR=${RED}
-        COMMENT+="[2 years old]"
-    else
-        DCOLOR=${NC}
+            # Mark folders older than 2 years
+            if [ $days -ge 730 ]; then
+                DCOLOR=${RED}
+                COMMENT+="[2 years old]"
+            else
+                DCOLOR=${NC}
+            fi
+        fi
     fi
 
     # Print the folder information
@@ -58,5 +70,4 @@ export RED
 export NC
 
 # Use GNU Parallel to process each folder in parallel
-echo "${FIND}" | parallel --will-cite -j 10 process_folder {} | sort -k 2 -n -t',' -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
-
+echo "${FIND}" | parallel --will-cite -j 10 process_folder {} | sort -t',' -k2 -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
