@@ -29,16 +29,19 @@ process_folder() {
     local entry="$1"
     IFS=',' read -r FOLDER DATE USER <<< "$entry" # Split the entry into FOLDER, DATE, and USER
     COMMENT=""
-    
+
     # Count the number of inodes (files) in the folder
-    INODES=$(find "${ROOT_FOLDER}/${FOLDER}" 2>/dev/null | wc -l)
+    INODES_OUTPUT=$(find "${ROOT_FOLDER}/${FOLDER}" 2>&1 | wc -l)
+    if [[ $(find "${ROOT_FOLDER}/${FOLDER}" 2>&1) == *"Permission denied"* ]]; then
+        COMMENT+="[permission error]"
+        INODES=0
+    else
+        INODES=$INODES_OUTPUT
+    fi
 
     # Check if the user is deactivated (user ID is numeric)
     if [[ ${USER} =~ ^[0-9]+$ ]]; then
-        UCOLOR=${RED}
         COMMENT+="[deactivated user]"
-    else
-        UCOLOR=${NC}
     fi
 
     # Calculate the age of the folder in days
@@ -51,10 +54,7 @@ process_folder() {
 
             # Mark folders older than 2 years
             if [ $days -ge 730 ]; then
-                DCOLOR=${RED}
                 COMMENT+="[2 years old]"
-            else
-                DCOLOR=${NC}
             fi
         fi
     fi
