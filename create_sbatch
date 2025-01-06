@@ -21,28 +21,33 @@ shift $((OPTIND-1))
 output=${@}.sbatch
 
 echo """#!/bin/bash -e
+
+# SBATCH OPTIONS (https://slurm.schedmd.com/sbatch.html)
 #SBATCH --job-name=JOBNAME      # Job name
 #SBATCH --mail-type=END,FAIL    # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --nodes=1               # Run on a single node
 #SBATCH --ntasks=1              # Run a single task
 #SBATCH --cpus-per-task=1       # Use 1 CPU per task
 #SBATCH --mem=1G                # Job memory per node. Different units can be specified using the suffix [K|M|G|T]
-#SBATCH --time=01-00:00:00      # Time limit days-hours:minutes:seconds
-#SBATCH --output=slurm_%j.log   # Standard output and error log""" > ./$output
-#SBATCH --gres=gpu:1            # Format gpu[[:TYPE]:count]. TYPE is an optional classification for the resource (e.g. a100)
+#SBATCH --time=00-01:00:00      # Time limit days-hours:minutes:seconds
+#SBATCH --output=slurm_%j.log   # Standard output and error log
+#SBATCH --account=users         # Only change if necessary and assigned an account """ > ./$output
+
 if [ "$gpu" == 1 ]; then
   echo "#SBATCH --gres=gpu:1            # Format gpu[[:TYPE]:count]. TYPE is an optional classification for the resource (e.g. a100)">> ./$output
 fi
 
 echo """
+######################################################################
 # CONVENIENT SLURM OUTPUT ENVIRONMENT VARIABLES
-# https://slurm.schedmd.com/sbatch.html#SECTION_OUTPUT-ENVIRONMENT-VARIABLES
-# SLURM_CPUS_PER_TASK: 
-# SLURM_MEM_PER_NODE:
-""" >> ./output
+# SLURM_CPUS_PER_TASK: Number of cpus requested per task
+#   Example: executable --CPUS=\$SLURM_CPUS_PER_TASK ...
+# SLURM_MEM_PER_NODE: Memory required per node in megabytes
+#   Example: java -Xmx\${SLURM_MEM_PER_NODE}M -jar program.jar ...
+######################################################################""" >> ./$output
 
 echo """
-# Unload any modules and load required modules. Use `module avail` to see what available software.
+# Unload any modules and load required modules. Use 'module avail' to see what available software.
 module purge
 #module load [PACKAGE/VERSION] [PACKAGE/VERSION]
 """ >> ./$output
