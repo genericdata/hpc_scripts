@@ -47,7 +47,7 @@ echo """
 ######################################################################""" >> ./$output
 
 echo """
-# Unload any modules and load required modules. Use 'module avail' to see what available software.
+# Unload any modules and load required modules. Use 'module avail' to see available software.
 module purge
 #module load [PACKAGE/VERSION] [PACKAGE/VERSION]
 """ >> ./$output
