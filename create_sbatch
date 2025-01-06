@@ -18,24 +18,31 @@ while getopts "h?vg" opt; do
 done
 
 shift $((OPTIND-1))
+output=${@}.sbatch
 
-output=$@
+echo """#!/bin/bash -e
+#SBATCH --job-name=JOBNAME      # Job name
+#SBATCH --mail-type=END,FAIL    # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --nodes=1               # Run on a single node
+#SBATCH --ntasks=1              # Run a single task
+#SBATCH --cpus-per-task=1       # Use 1 CPU per task
+#SBATCH --mem=1G                # Job memory per node. Different units can be specified using the suffix [K|M|G|T]
+#SBATCH --time=01-00:00:00      # Time limit days-hours:minutes:seconds
+#SBATCH --output=slurm_%j.log   # Standard output and error log""" > ./$output
+#SBATCH --gres=gpu:1            # Format gpu[[:TYPE]:count]. TYPE is an optional classification for the resource (e.g. a100)
+if [ "$gpu" == 1 ]; then
+  echo "#SBATCH --gres=gpu:1            # Format gpu[[:TYPE]:count]. TYPE is an optional classification for the resource (e.g. a100)">> ./$output
+fi
 
+echo """
+# CONVENIENT SLURM OUTPUT ENVIRONMENT VARIABLES
+# https://slurm.schedmd.com/sbatch.html#SECTION_OUTPUT-ENVIRONMENT-VARIABLES
+# SLURM_CPUS_PER_TASK: 
+# SLURM_MEM_PER_NODE:
+""" >> ./output
 
-echo "#!/bin/bash -e
-
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=1
-#SBATCH --time=1:00:00
-#SBATCH --mem=2GB
-#SBATCH --job-name=myTest
-#SBATCH --mail-type=END
-#SBATCH --output=slurm_%j.out" > ./$output.SBATCH
-
-  if [ "$gpu" == 1 ]; then
-    echo "#SBATCH --gres=gpu:1">> ./$output.SBATCH
-  fi
-
-  echo "
-module purge" >> ./$output.SBATCH
+echo """
+# Unload any modules and load required modules. Use `module avail` to see what available software.
+module purge
+#module load [PACKAGE/VERSION] [PACKAGE/VERSION]
+""" >> ./$output
