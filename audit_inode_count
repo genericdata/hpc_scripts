@@ -70,4 +70,4 @@ export RED
 export NC
 
 # Use GNU Parallel to process each folder in parallel
-echo "${FIND}" | parallel --will-cite -j 10 process_folder {} | sort -t',' -k2 -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
+echo "${FIND}" | parallel --will-cite -j 10 process_folder {} | sort -t',' -k2 -n -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
