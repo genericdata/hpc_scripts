@@ -13,38 +13,51 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 # Default is the present working directory; otherwise, use the first argument
-ROOT_FOLDER=${1:-.}
+ROOT_FOLDER=$(echo "${1:-.}" | sed 's:/*$::')
+
+# Validate that ROOT_FOLDER is a valid directory
+if [ ! -d "$ROOT_FOLDER" ]; then
+    echo -e "${RED}Error:${NC} $ROOT_FOLDER is not a valid directory"
+    exit 1
+fi
 
 # Find and save all subfolders of ROOT_FOLDER, sorting them
-FIND=$(find "${ROOT_FOLDER}" -mindepth 1 -maxdepth 1 -type d -printf "%f,%TY-%Tm-%Td,%u\n" | sort )
+FIND=$(find "${ROOT_FOLDER}" -mindepth 1 -maxdepth 1 -type d -printf "%f,%TY-%Tm-%Td,%u\n" | sort)
 
 # Function to process each folder
 process_folder() {
     local entry="$1"
     IFS=',' read -r FOLDER DATE USER <<< "$entry" # Split the entry into FOLDER, DATE, and USER
     COMMENT=""
-    
+
     # Count the number of inodes (files) in the folder
-    INODES=$(find "${ROOT_FOLDER}/${FOLDER}" 2>/dev/null | wc -l)
+    OUTPUT=$(find "${ROOT_FOLDER}/${FOLDER}" 2>&1) 
+    INODES_OUTPUT=$(echo "$OUTPUT" | wc -l)
+    if [[ "$OUTPUT" == *"Permission denied"*]]; then
+        COMMENT+="[permission error]"
+        INODES=0
+    else
+        INODES=$INODES_OUTPUT
+    fi
 
     # Check if the user is deactivated (user ID is numeric)
     if [[ ${USER} =~ ^[0-9]+$ ]]; then
-        UCOLOR=${RED}
         COMMENT+="[deactivated user]"
-    else
-        UCOLOR=${NC}
     fi
 
     # Calculate the age of the folder in days
-    ((diff=$(date +%s)-$(date -d ${DATE} +%s)))
-    ((days=${diff}/(60*60*24)))
+    if [[ -n "$DATE" ]]; then
+        FOLDER_DATE=$(date -d "$DATE" +%s 2>/dev/null || echo "0")
+        if [[ $FOLDER_DATE -ne 0 ]]; then
+            CURRENT_DATE=$(date +%s)
+            ((diff=CURRENT_DATE-FOLDER_DATE))
+            ((days=diff/(60*60*24)))
 
-    # Mark folders older than 2 years
-    if [ $days -ge 730 ]; then
-        DCOLOR=${RED}
-        COMMENT+="[2 years old]"
-    else
-        DCOLOR=${NC}
+            # Mark folders older than 2 years
+            if [ $days -ge 730 ]; then
+                COMMENT+="[2 years old]"
+            fi
+        fi
     fi
 
     # Print the folder information
@@ -58,5 +71,4 @@ export RED
 export NC
 
 # Use GNU Parallel to process each folder in parallel
-echo "${FIND}" | parallel --will-cite -j 10 process_folder {} | sort -k 2 -n -t',' -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
-
+echo "${FIND}" | parallel --will-cite -j 10 process_folder {} | sort -t',' -k2 -n -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
