@@ -32,10 +32,10 @@ process_folder() {
 
     # Count the number of inodes (files) in the folder
     OUTPUT=$(find "${ROOT_FOLDER}/${FOLDER}" 2>&1) 
-    INODES_OUTPUT=$(echo "$OUTPUT" | wc -l)
-    if [[ "$OUTPUT" == *"Permission denied"*]]; then
+    INODES_OUTPUT=$(echo "$OUTPUT" | grep -v "Permission denied" | wc -l)
+    if [[ "$OUTPUT" == *"Permission denied"* ]]; then
         COMMENT+="[permission error]"
-        INODES=0
+        INODES="${INODES_OUTPUT}+"
     else
         INODES=$INODES_OUTPUT
     fi
