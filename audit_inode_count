@@ -40,7 +40,7 @@ process_folder() {
     OUTPUT=$(find "${ROOT_FOLDER}/${FOLDER}" 2>&1) 
     INODES_OUTPUT=$(echo "$OUTPUT" | grep -v "Permission denied" | wc -l)
     if [[ "$OUTPUT" == *"Permission denied"* ]]; then
-        COMMENT+="[permission error]"
+        COMMENT+="[${RED}permission error${NC}]"
         INODES="${INODES_OUTPUT}+"
     else
         INODES=$INODES_OUTPUT
@@ -48,7 +48,7 @@ process_folder() {
 
     # Check if the user is deactivated (user ID is numeric)
     if [[ ${USER} =~ ^[0-9]+$ ]]; then
-        COMMENT+="[deactivated user]"
+        COMMENT+="[${YELLOW}deactivated user${NC}]"
     fi
 
     # Calculate the age of the folder in days
@@ -61,7 +61,7 @@ process_folder() {
 
             # Mark folders older than 2 years
             if [ $days -ge 730 ]; then
-                COMMENT+="[2 years old]"
+                COMMENT+="[${YELLOW}2 years old${NC}]"
             fi
         fi
     fi
@@ -74,6 +74,7 @@ process_folder() {
 export -f process_folder
 export ROOT_FOLDER
 export RED
+export YELLOW
 export NC
 
 # Use GNU Parallel to process each folder in parallel
