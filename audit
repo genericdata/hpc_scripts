@@ -1,15 +1,15 @@
 #!/bin/bash
 
 ########################################################################################
-# Reports the number of inodes, user, and date of each subfolder of the target folder  #
+# Reports the usage, inodes, user, and date of each subfolder of the target folder     #
 ########################################################################################
 # EXAMPLE:
-# $ ./audit_inode_count /scratch/projects/lab/
-# FOLDER                                  INODES  USER    DATE        COMMENT
-# /scratch/projects/lab/.snapshots        47803+  root    1969-12-31  [permission error][2 years old]
-# /scratch/projects/lab/data              1539    user2   2024-11-22  
-# /scratch/projects/lab/user1             1233    user1   2024-06-20  [deactivated user]
-# /scratch/projects/lab/2024-11-21_H5W    1+      user2   2024-11-25  [permission error]
+# $ ./audit /scratch/projects/lab/ -i
+# FOLDER                                  USAGE   INODES  USER    DATE        COMMENT
+# /scratch/projects/lab/.snapshots        1.2G    47803+  root    1969-12-31  [permission error][2 years old]
+# /scratch/projects/lab/data              500M    1539    user2   2024-11-22  
+# /scratch/projects/lab/user1             300M    1233    user1   2024-06-20  [deactivated user]
+# /scratch/projects/lab/2024-11-21_H5W    4K      1+      user2   2024-11-25  [permission error]
 
 module load parallel/20201022
 
@@ -17,6 +17,27 @@ module load parallel/20201022
 export RED='\033[0;31m'
 export YELLOW='\033[0;33m'
 export NC='\033[0m' # No Color
+
+# Determine the sorting method
+SORT_BY_USAGE="sort -t',' -k2 -h -r"
+SORT_BY_INODE="sort -t',' -k3 -n -r"
+SORT=$SORT_BY_USAGE
+
+# Parse options using getopts
+while getopts "h?i" opt; do
+  case "$opt" in
+    h|\?)
+      echo "Usage: $0 [-i] path" 
+      echo "Report the usage, inodes, owner, and date of each subfolder of the target folder"
+      echo "    -i              Sort report by inode (default storage usage)"
+      exit 0
+      ;;
+    i) SORT=$SORT_BY_INODE
+      ;;
+  esac
+done
+
+shift $((OPTIND -1))
 
 # Default is the present working directory; otherwise, use the first argument
 export ROOT_FOLDER=$(echo "${1:-.}" | sed 's:/*$::')
@@ -46,6 +67,12 @@ process_folder() {
         INODES=$INODES_OUTPUT
     fi
 
+    # Get the storage usage of the folder
+    USAGE=$(du -sh "${ROOT_FOLDER}/${FOLDER}" 2>/dev/null | cut -f1)
+    if [[ -z "$USAGE" ]]; then
+        USAGE="N/A"
+    fi
+
     # Check if the user is deactivated (user ID is numeric)
     if [[ ${USER} =~ ^[0-9]+$ ]]; then
         COMMENT+="[${YELLOW}deactivated user${NC}]"
@@ -67,11 +94,11 @@ process_folder() {
     fi
 
     # Print the folder information
-    echo -e "${ROOT_FOLDER}/${FOLDER},${INODES},${USER},${DATE},${COMMENT}"
+    echo -e "${ROOT_FOLDER}/${FOLDER},${USAGE},${INODES},${USER},${DATE},${COMMENT}"
 }
 
 # Export the function for use in GNU Parallel
 export -f process_folder
 
 # Use GNU Parallel to process each folder in parallel
-echo "${FIND}" | parallel --will-cite -j 10 process_folder {} | sort -t',' -k2 -n -r | column -s',' -t -N "FOLDER,INODES,USER,DATE,COMMENT"
+echo "${FIND}" | parallel --will-cite -j 10 process_folder {} | eval $SORT | column -s',' -t -N "FOLDER,USAGE,INODES,USER,DATE,COMMENT"
