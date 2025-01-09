@@ -1,10 +1,16 @@
 #!/bin/bash
 
+# Check if the output argument is provided 
+if [ -z "$1" ]; then 
+	echo "Usage: $0 output_filename"
+	exit 1
+fi
+
 output=$1
 
 if [ -f ./${output}.sbatch ]; then
-    echo "File \"${output}.sbatch\" already exists"
-    exit 1
+  echo "File \"${output}.sbatch\" already exists"
+  exit 1
 fi
 
 echo """#!/bin/bash -e
