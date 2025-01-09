@@ -1,9 +1,15 @@
 #!/bin/bash
 
-#############################################
-# Reports the number of inodes in each
-# subfolder of the target folder
-#############################################
+########################################################################################
+# Reports the number of inodes, user, and date of each subfolder of the target folder  #
+########################################################################################
+# EXAMPLE:
+# $ ./audit_inode_count /scratch/projects/lab/
+# FOLDER                                  INODES  USER    DATE        COMMENT
+# /scratch/projects/lab/.snapshots        47803+  root    1969-12-31  [permission error][2 years old]
+# /scratch/projects/lab/data              1539    user2   2024-11-22  
+# /scratch/projects/lab/user1             1233    user1   2024-06-20  [deactivated user]
+# /scratch/projects/lab/2024-11-21_H5W    1+      user2   2024-11-25  [permission error]
 
 module load parallel/20201022
 
