@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Usage: ./seff_wrapper.sh [-u user] [-j jobname] [-s start_time] [-e end_time]
+# Usage: seffs [-u user] [-j jobname] [-s start_time] [-e end_time]
 
 export RED='\033[0;31m'
 export YELLOW='\033[0;33m'
@@ -15,7 +15,7 @@ END_TIME="now"
 export SLURM_TIME_FORMAT="%Y-%m-%d_%H:%M"
 
 usage(){
-  echo "Usage: ./seff_wrapper.sh [-u user] [-j jobname] [-s start_time] [-e end_time]"
+  echo "Usage: $0 [-u user] [-j jobname] [-s start_time] [-e end_time]"
 }
 
 while getopts "u:j:s:e:h" opt; do
