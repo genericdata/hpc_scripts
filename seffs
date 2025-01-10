@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# Usage: ./seff_wrapper.sh [-u user] [-j jobname] [-s start_time] [-e end_time]
+
+export RED='\033[0;31m'
+export YELLOW='\033[0;33m'
+export GREEN='\033[0;32m'
+export NC='\033[0m' # No Color
+
+# Default values
+USER=$(whoami)
+JOBNAME=""
+START_TIME="now-1day"
+END_TIME="now"
+export SLURM_TIME_FORMAT="%Y-%m-%d_%H:%M"
+
+usage(){
+  echo "Usage: ./seff_wrapper.sh [-u user] [-j jobname] [-s start_time] [-e end_time]"
+}
+
+while getopts "u:j:s:e:h" opt; do
+  case ${opt} in
+    u )
+      USER=$OPTARG
+      ;;
+    j )
+      JOBNAME=$OPTARG
+      ;;
+    s )
+      START_TIME=$OPTARG
+      ;;
+    e )
+      END_TIME=$OPTARG
+			;;
+		h )
+			usage
+			exit 0
+      ;;
+    \? )
+      usage
+			exit 1
+			;;
+  esac
+done
+shift $((OPTIND -1))
+
+
+# Default values
+if ! id "$USER" &>/dev/null; then
+  echo "User $USER does not exist."
+  exit 1
+fi
+
+# Function to print job efficiency in a pretty format
+print_job_efficiency() {
+	local job_id=$1
+	local job_name=$2
+  local start_time=$3
+  local end_time=$4
+	local elapsed_time=$5
+	local req_cpus=$6
+	local req_mem=$7
+	local state=$8
+
+  # Get job efficiency details from seff
+  seff_output=$(seff "$job_id")
+
+	# Extract relevant fields from seff output
+  cpu_efficiency=$(echo "$seff_output" | grep "CPU Efficiency:" | awk '{print $3}' | tr -d '%')
+  memory_efficiency=$(echo "$seff_output" | grep "Memory Efficiency:" | awk '{print $3}' | tr -d '%')
+
+	# Print job efficiency details
+  printf "%s,%s,%s,%d,%.2f%%,%s,%.2f%%,%s,%s\n" "$job_id" "$job_name" "$state" "$req_cpus" "$cpu_efficiency" "$req_mem" "$memory_efficiency" "$start_time" "$elapsed_time"
+}
+
+# Get job IDs based on the provided arguments
+job_ids=$(sacct -X -u $USER --start=$START_TIME --end=$END_TIME --state=CD --format=JobID,JobName%40,Start,End,Elapsed,ReqCPUS,ReqMem,State --noheader | grep -i "$JOBNAME" | awk '{print $1, $2, $3, $4, $5, $6, $7, $8}')
+
+# Check if there are any completed jobs 
+if [ -z "$job_ids" ]; then 
+	echo "no jobs completed" 
+	exit 0 
+fi
+
+# Print table headers and job details with column formatting
+{
+  echo "JOBID,JOBNAME,STATE,CORES,CPU EFF,MEMORY,MEMORY EFF,START TIME,ELAPSED"
+  while read -r job_id job_name start_time end_time elapsed_time req_cpus req_mem state; do
+    print_job_efficiency $job_id $job_name $start_time $end_time $elapsed_time $req_cpus $req_mem $state
+  done <<< "$job_ids"
+} | column -t -s ','
+
