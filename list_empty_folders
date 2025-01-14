@@ -38,7 +38,7 @@ fi
 
 # Iterate through all subdirectories in the provided directory
 for dir in "$directory_to_check"/*; do
-  if [ -d "$dir" ]; then
+  if [ -d "$dir" ] && [ ! -L "$dir" ]; then
     if is_empty "$dir"; then
       echo "$dir"
     fi
