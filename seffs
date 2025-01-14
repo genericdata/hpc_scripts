@@ -66,15 +66,16 @@ print_job_efficiency() {
   seff_output=$(seff "$job_id")
 
 	# Extract relevant fields from seff output
+	mem_used=$(echo "$seff_output" | grep "Memory Utilized:" | awk '{print $3}' )
   cpu_efficiency=$(echo "$seff_output" | grep "CPU Efficiency:" | awk '{print $3}' | tr -d '%')
   memory_efficiency=$(echo "$seff_output" | grep "Memory Efficiency:" | awk '{print $3}' | tr -d '%')
 
 	# Print job efficiency details
-  printf "%s,%s,%s,%d,%.2f%%,%s,%.2f%%,%s,%s\n" "$job_id" "$job_name" "$state" "$req_cpus" "$cpu_efficiency" "$req_mem" "$memory_efficiency" "$start_time" "$elapsed_time"
+  printf "%s,%s,%s,%d,%.2f%%,%s,%s,%.2f%%,%s,%s\n" "$job_id" "$job_name" "$state" "$req_cpus" "$cpu_efficiency" "$req_mem" "$mem_used" "$memory_efficiency" "$start_time" "$elapsed_time"
 }
 
 # Get job IDs based on the provided arguments
-job_ids=$(sacct -X -u $USER --start=$START_TIME --end=$END_TIME --state=CD --format=JobID,JobName%40,Start,End,Elapsed,ReqCPUS,ReqMem,State --noheader | grep -i "$JOBNAME" | awk '{print $1, $2, $3, $4, $5, $6, $7, $8}')
+job_ids=$(sacct -X -u $USER --start=$START_TIME --end=$END_TIME --state=CD,TO --format=JobID,JobName%40,Start,End,Elapsed,ReqCPUS,ReqMem,State --noheader | grep -i "$JOBNAME" | awk '{print $1, $2, $3, $4, $5, $6, $7, $8}')
 
 # Check if there are any completed jobs 
 if [ -z "$job_ids" ]; then 
@@ -84,7 +85,7 @@ fi
 
 # Print table headers and job details with column formatting
 {
-  echo "JOBID,JOBNAME,STATE,CORES,CPU EFF,MEMORY,MEMORY EFF,START TIME,ELAPSED"
+  echo "JOBID,JOBNAME,STATE,CORES,CPU EFF,MEMORY,MEM USED,MEMORY EFF,START TIME,ELAPSED"
   while read -r job_id job_name start_time end_time elapsed_time req_cpus req_mem state; do
     print_job_efficiency $job_id $job_name $start_time $end_time $elapsed_time $req_cpus $req_mem $state
   done <<< "$job_ids"
