@@ -37,10 +37,10 @@ if [ ! -d "$directory_to_check" ]; then
 fi
 
 # Iterate through all subdirectories in the provided directory
-for dir in "$directory_to_check"/*; do
-  if [ -d "$dir" ] && [ ! -L "$dir" ]; then
-    if is_empty "$dir"; then
-      echo "$dir"
-    fi
+#for dir in "$directory_to_check"/*; do
+#  if [ -d "$dir" ] && [ ! -L "$dir" ]; then
+find "$directory_to_check" -mindepth 1 -maxdepth 1 -type d  | while read -r dir; do
+  if is_empty "$dir"; then
+    echo "$dir"
   fi
 done
