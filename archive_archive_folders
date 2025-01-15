@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Prints a list of directories that contain no files.
+
+usage() {
+  echo "Print a list of directories that contain no files"
+  echo "Usage: $0 <directory>"
+  echo ""
+}
+
+# Function to check if a directory is empty
+is_empty() {
+  local dir="$1"
+  # Find files in the directory and subdirectories
+  if find "$dir" -type f 2>/dev/null | read ; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+# Directory to check
+directory_to_check="$1"
+
+# Check if directory is provided
+if [ -z "$directory_to_check" ]; then
+  usage
+  exit 1
+fi
+
+# Check if the provided path is a directory
+if [ ! -d "$directory_to_check" ]; then
+  echo "ERROR: $directory_to_check is not a directory."
+  echo ""
+  usage
+  exit 1
+fi
+
+# Iterate through all subdirectories in the provided directory
+#for dir in "$directory_to_check"/*; do
+#  if [ -d "$dir" ] && [ ! -L "$dir" ]; then
+
+mkdir -p "${directory_to_check}/.empty_folders"
+find "$directory_to_check" -mindepth 1 -maxdepth 1 -type d -not -name ".empty_folders" | while read -r dir; do
+  if is_empty "$dir"; then
+    echo "$dir"
+		mv "$dir" "${directory_to_check}/.empty_folders"
+  fi
+done
