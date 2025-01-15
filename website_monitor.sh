@@ -4,8 +4,9 @@
 # Example: ./websiteMonitor.sh urls.txt
 
 TO="eb167@nyu.edu, mk5636@nyu.edu"
+#TO="eb167@nyu.edu"
 FROM="gencore@nyu.edu"
-DOWN_URLS_FILE="/tmp/down_urls.txt"
+DOWN_URLS_FILE="down_urls.txt"
 
 if [ -z "$1" ]; then
   echo "Usage: $0 <url_file>"
@@ -55,9 +56,9 @@ while read -r URL; do
       continue
     fi
 
-    # Check the URL 4 times once every 5 seconds before sending an email
-    for i in {1..4}; do
-      HTTP_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -L -k $URL)
+    # Check the URL 6 times once every 5 seconds before sending an email
+    for i in {1..6}; do
+      HTTP_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -L -k --max-time 1 $URL)
       if [ "$HTTP_RESPONSE" -eq 200 ]; then
         break
       fi
@@ -83,3 +84,4 @@ while read -r URL; do
     fi
   fi
 done < "$URL_FILE"
+
