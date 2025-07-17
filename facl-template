@@ -23,10 +23,10 @@ print_usage() {
     echo "Grant ${TYPE} (${PERMISSIONS}) access to the current directory recursively"
     echo " and navigation permissions (--X) to the parent directories"
     echo ""
-    echo "Usage: $(basename $0) [-h] [USER] [DIR]"
-    echo "  -h    Display this help message"
-    echo "  USER  The user to set ACL for (default: netID)"
-    echo "  DIR   The directory to set ACL on (default: current directory)"
+    echo "Usage: $(basename $0) [-h] [USERS] [DIR]"
+    echo "  -h     Display this help message"
+    echo "  USERS  The user(s) to set ACL for (comma-separated, default: netID)"
+    echo "  DIR    The directory to set ACL on (default: current directory)"
 }
 
 # Set PERMISSIONS and TYPE based on the script name
@@ -48,17 +48,25 @@ if [ "$1" == "-h" ]; then
 fi
 
 # Check if only one argument is passed
-if [ $# -eq 1 ]; then
+if [ $# -eq 0 ]; then
+    USERS="netID"
+    DIR=$(pwd)
+elif [ $# -eq 1 ]; then
     if [[ "$1" == /* ]]; then
         DIR="$1"
-        USER="netID"
+        USERS="netID"
     else
-        USER="$1"
+        USERS="$1"
         DIR=$(pwd)
     fi
+elif [ $# -eq 2 ]; then
+    USERS="$1"
+    DIR="$2"
 else
-    USER=${1:-"netID"}
-    DIR=${2:-$(pwd)}
+    echo "Error: Too many arguments. Expected at most [USERS] [DIR]." >&2
+    echo ""
+    print_usage # Assuming you have a print_usage function defined
+    exit 1
 fi
 
 # Convert DIR to $(pwd) if it equals '.'
@@ -67,12 +75,12 @@ if [ "$DIR" == "." ]; then
 fi
 
 # Verify if the user is valid or "netID"
-if ! id "$USER" &>/dev/null && [ "$USER" != "netID" ]; then
-    echo "User $USER does not exist'."
-    echo ""
-    print_usage
-    exit 1
-fi
+#if ! id "$USER" &>/dev/null && [ "$USER" != "netID" ]; then
+#    echo "User $USER does not exist'."
+#    echo ""
+#    print_usage
+#    exit 1
+#fi
 
 # Ensure DIR is a full path
 if [[ "$DIR" != /* ]]; then
@@ -87,23 +95,32 @@ set_acl() {
     local user=$1
     local dir=$2
     local parent_dir
-
+    local type=$3
+    
     while [[ "$dir" != "/" ]]; do
         parent_dir=$(dirname "$dir")
         if [[ "$(dirname $parent_dir)" == "/" ]]; then
             break
         fi
-        echo "  setfacl -m u:$user:--X $parent_dir"
+        echo "  setfacl -m $type:$user:--X $parent_dir"
         dir=$parent_dir
     done
 }
 
 # Print the setfacl command for the current directory
 echo "# Grant ${TYPE} (${PERMISSIONS}) access to the current directory and everything within"
-echo "  setfacl -R -m u:${USER}:${PERMISSIONS},d:u:${USER}:${PERMISSIONS} ${DIR}"
+
+# Iterate through $USERS and print the setfacl command
+IFS=',' read -ra ADDR <<< "$USERS"
+for user in "${ADDR[@]}"; do
+  echo "  setfacl -R -m u:${user}:${PERMISSIONS},d:u:${user}:${PERMISSIONS} ${DIR}"
+done
+
 echo ""
 echo "# Grant only navigation permissions to the parent directories"
 
 # Set ACL for parent directories dynamically
-set_acl "${USER}" "${DIR}"
-
+IFS=',' read -ra ADDR <<< "$USERS"
+for user in "${ADDR[@]}"; do
+  set_acl "${user}" "${DIR}" "u"
+done
