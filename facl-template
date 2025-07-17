@@ -90,37 +90,43 @@ if [[ "$DIR" != /* ]]; then
     exit 1
 fi
 
-# Function to set ACL for parent directories
-set_acl() {
-    local user=$1
-    local dir=$2
-    local parent_dir
-    local type=$3
-    
-    while [[ "$dir" != "/" ]]; do
-        parent_dir=$(dirname "$dir")
-        if [[ "$(dirname $parent_dir)" == "/" ]]; then
-            break
-        fi
-        echo "  setfacl -m $type:$user:--X $parent_dir"
-        dir=$parent_dir
-    done
-}
+# Iterate through comma-seperated $USERS 
+IFS=',' read -ra ADDR <<< "$USERS"
+
+# Build the ACL entries string
+acl_entries=""
+num_users=${#ADDR[@]}
+for i in "${!ADDR[@]}"; do
+  user="${ADDR[$i]}"
+  acl_entries+="u:${user}:${PERMISSIONS},d:u:${user}:${PERMISSIONS}"
+  if (( i < num_users - 1 )); then
+    acl_entries+=","
+  fi
+done
+
 
 # Print the setfacl command for the current directory
 echo "# Grant ${TYPE} (${PERMISSIONS}) access to the current directory and everything within"
-
-# Iterate through $USERS and print the setfacl command
-IFS=',' read -ra ADDR <<< "$USERS"
-for user in "${ADDR[@]}"; do
-  echo "  setfacl -R -m u:${user}:${PERMISSIONS},d:u:${user}:${PERMISSIONS} ${DIR}"
-done
-
+echo """  setfacl -R -m "${acl_entries}" "${DIR}" """ 
 echo ""
+
 echo "# Grant only navigation permissions to the parent directories"
 
-# Set ACL for parent directories dynamically
-IFS=',' read -ra ADDR <<< "$USERS"
-for user in "${ADDR[@]}"; do
-  set_acl "${user}" "${DIR}" "u"
+acl_entries=""
+for i in "${!ADDR[@]}"; do
+  user="${ADDR[$i]}"
+  acl_entries+="u:${user}:--X"
+  if (( i < num_users - 1 )); then
+    acl_entries+=","
+  fi
 done
+
+while [[ "$DIR" != "/" ]]; do
+  parent_dir=$(dirname "$DIR")
+  if [[ "$(dirname $parent_dir)" == "/" ]]; then
+    break
+  fi
+  echo "  setfacl -m ${acl_entries} ${parent_dir} "
+  DIR=$parent_dir
+done
+
