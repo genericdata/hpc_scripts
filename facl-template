@@ -1,118 +1,147 @@
 #!/bin/bash
 
-# Prints to terminal the `setfacl` commands for a specified user on a given directory and its parent directories. 
+# Prints to terminal the `setfacl` commands for a specified user or group on a given directory and its parent directories.
 
-## EXAMPLE OUTPUT ####################################################
+## EXAMPLE OUTPUT (for a user) ########################################
 ## # Grant write access to the current directory and everything within
-##   setfacl -R -m u:netID:rwX,d:u:netID:rwX /scratch/path/to/the/folder
+##   setfacl -R -m "u:netID:rwX,d:u:netID:rwX" "/scratch/path/to/the/folder"
 ## # Grant only navigation permissions to the parent directories
-##   setfacl -m u:netID:--X /scratch/path/to/the
-##   setfacl -m u:netID:--X /scratch/path/to
-##   setfacl -m u:netID:--X /scratch/path
+##   setfacl -m u:netID:--X "/scratch/path/to/the"
+##   setfacl -m u:netID:--X "/scratch/path/to"
+##   setfacl -m u:netID:--X "/scratch/path"
 ######################################################################
 
-# Administrators: 
- # Create two softlinks, one name containing "read" and the other "write" (case-insensitive). 
+# Administrators:
+ # Create two softlinks, one name containing "read" and the other "write" (case-insensitive).
  # Permissions will be configured based on detected script name.
  # If "read" is found, it sets PERMISSIONS to r-X and TYPE to read.
  # If "write" is found, it sets PERMISSIONS to rwX and TYPE to write.
  # If neither is found, it prints an error message and exits.
 
-# Function to print usage
-print_usage() {
-    echo "Grant ${TYPE} (${PERMISSIONS}) access to the current directory recursively"
-    echo " and navigation permissions (--X) to the parent directories"
-    echo ""
-    echo "Usage: $(basename $0) [-h] [USERS] [DIR]"
-    echo "  -h     Display this help message"
-    echo "  USERS  The user(s) to set ACL for (comma-separated, default: netID)"
-    echo "  DIR    The directory to set ACL on (default: current directory)"
-}
+# --- Initialize variables ---
+PERMISSIONS=""
+TYPE=""
+TARGET_NAMES="" # Will hold comma-separated users or groups
+DIR=""
+PREFIX="u" # Default ACL prefix for users
 
-# Set PERMISSIONS and TYPE based on the script name
-if [[ "${0,,}" == *"read"* ]]; then 
-    PERMISSIONS="r-X"
-    TYPE="read"
-elif [[ "${0,,}" == *"write"* ]]; then 
-    PERMISSIONS="rwX" 
-    TYPE="write"
-else 
-    echo "Script name must contain 'read' or 'write' to set permissions." 
-    exit 1 
+# --- Set PERMISSIONS and TYPE based on the script name ---
+if [[ "${0,,}" == *"read"* ]]; then
+  PERMISSIONS="r-X"
+  TYPE="read"
+elif [[ "${0,,}" == *"write"* ]]; then
+  PERMISSIONS="rwX"
+  TYPE="write"
+else
+  echo "Error: Script name must contain 'read' or 'write' to set permissions." >&2
+  exit 1
 fi
+
+# --- Function to print usage ---
+print_usage() {
+  echo "Grant ${TYPE} (${PERMISSIONS}) access to a directory recursively"
+  echo "and navigation permissions (--X) to its parent directories."
+  echo ""
+  echo "Usage: $(basename $0) [-h] [GROUPS | USERS] [DIR]"
+  echo "  -h            Display this help message"
+  echo "  GROUPS|USERS  Set ACLs for the specified user(s) (comma-separated, default: netID)"
+  echo "  DIR           The directory to set ACL on (default: current directory)"
+  echo ""
+}
 
 # Check if -h is passed
 if [ "$1" == "-h" ]; then
-    print_usage
-    exit 0
+  print_usage
+  exit 0
 fi
 
 # Check if only one argument is passed
 if [ $# -eq 0 ]; then
-    USERS="netID"
-    DIR=$(pwd)
+  TARGET_NAMES="netID"
+  DIR=$(pwd)
 elif [ $# -eq 1 ]; then
-    if [[ "$1" == /* ]]; then
-        DIR="$1"
-        USERS="netID"
-    else
-        USERS="$1"
-        DIR=$(pwd)
-    fi
-elif [ $# -eq 2 ]; then
-    USERS="$1"
-    DIR="$2"
-else
-    echo "Error: Too many arguments. Expected at most [USERS] [DIR]." >&2
-    echo ""
-    print_usage # Assuming you have a print_usage function defined
-    exit 1
-fi
-
-# Convert DIR to $(pwd) if it equals '.'
-if [ "$DIR" == "." ]; then
+  if [[ "$1" == /* ]]; then
+    DIR="$1"
+    TARGET_NAMES="netID"
+  else
+    TARGET_NAMES="$1"
     DIR=$(pwd)
-fi
-
-# Verify if the user is valid or "netID"
-#if ! id "$USER" &>/dev/null && [ "$USER" != "netID" ]; then
-#    echo "User $USER does not exist'."
-#    echo ""
-#    print_usage
-#    exit 1
-#fi
-
-# Ensure DIR is a full path
-if [[ "$DIR" != /* ]]; then
-    echo "DIR must be a full path."
-    echo ""
-    print_usage
-    exit 1
-fi
-
-# Iterate through comma-seperated $USERS 
-IFS=',' read -ra ADDR <<< "$USERS"
-num_users=${#ADDR[@]}
-
-# Build the ACL entries string
-acl_entries=""
-for i in "${!ADDR[@]}"; do
-  user="${ADDR[$i]}"
-  acl_entries+="u:${user}:${PERMISSIONS},d:u:${user}:${PERMISSIONS}"
-  nav_acls+="u:${user}:--X"
-  if (( i < num_users - 1 )); then
-    acl_entries+=","
-    nav_acls+=","
   fi
+elif [ $# -eq 2 ]; then
+  TARGET_NAMES="$1"
+  DIR="$2"
+else
+  echo "Error: Too many arguments. Expected at most [USERS] [DIR]." >&2
+  echo ""
+  print_usage # Assuming you have a print_usage function defined
+  exit 1
+fi
+
+# --- Validate inputs ---
+if [ -z "$TARGET_NAMES" ]; then
+  echo "Error: No users or groups specified." >&2
+  print_usage
+  exit 1
+fi
+
+if [ "$DIR" == "." ]; then
+  DIR=$(pwd)
+fi
+
+if [[ "$DIR" != /* ]]; then
+  echo "Error: DIR must be a full path." >&2
+  print_usage
+  exit 1
+fi
+
+# --- Build and print ACL commands ---
+
+# Convert comma-separated string to an array
+IFS=',' read -ra TARGET_ARRAY <<< "$TARGET_NAMES"
+num_targets=${#TARGET_ARRAY[@]}
+
+# Build the ACL entries string for the target directory
+acl_entries=""
+invalid_targets=()
+
+for i in "${!TARGET_ARRAY[@]}"; do
+  target="${TARGET_ARRAY[$i]}"
+  
+  # Check if the target is a valid user or group
+  if id -u "$target" &>/dev/null || [ "$target" == "netID" ]; then
+    PREFIX="u"
+  elif getent group "$target" &>/dev/null; then
+    PREFIX="g"
+  else
+    invalid_targets+=("$target")
+    continue
+  fi
+  
+  # ACL for the directory and new files/dirs (default)
+  acl_entries+="${PREFIX}:${target}:${PERMISSIONS},d:${PREFIX}:${target}:${PERMISSIONS},"
+  nav_acls+="${PREFIX}:${target}:--X,"
 done
 
-# Print the setfacl command for the current directory
-echo -e "\e[34m# Grant ${TYPE} (${PERMISSIONS}) access to the current directory and everything within\e[0m"
-echo "  setfacl -R -m \"${acl_entries}\" \"${DIR}\" " 
-echo ""
-echo -e "\e[34m# Grant only navigation permissions to the parent directories\e[0m"
-while [[ "$(dirname "$DIR")" != "/" ]]; do
-  parent_dir=$(dirname "$DIR")
-  echo "  setfacl -m ${nav_acls} \"${parent_dir}\""
-  DIR="$parent_dir"
-done
+if [[ -n "${acl_entries}" ]]; then
+  # Print the setfacl command for the target directory
+  echo -e "\e[34m# Grant ${TYPE} (${PERMISSIONS}) access to '${DIR}' and contents within\e[0m"
+  echo "  setfacl -R -m ${acl_entries%,} \"${DIR}\""
+  echo ""
+
+  # Print the setfacl commands for the parent directories
+  echo -e "\e[34m# Grant only navigation permissions to the parent directories\e[0m"
+  current_path="$DIR"
+  while [[ "$(dirname $(dirname "$current_path"))" != "/" ]]; do
+    parent_dir=$(dirname "$current_path")
+    echo "  setfacl -m ${nav_acls%,} \"${parent_dir}\""
+    current_path="$parent_dir"
+  done
+  echo ""
+fi
+
+# --- Report invalid targets and exit if any are found ---
+if [ ${#invalid_targets[@]} -gt 0 ]; then
+  echo "Error: The following users or groups could not be found and will be ignored:" >&2
+  printf " - %s\n" "${invalid_targets[@]}" >&2
+  echo ""
+fi
