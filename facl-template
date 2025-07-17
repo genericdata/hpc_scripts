@@ -92,41 +92,27 @@ fi
 
 # Iterate through comma-seperated $USERS 
 IFS=',' read -ra ADDR <<< "$USERS"
+num_users=${#ADDR[@]}
 
 # Build the ACL entries string
 acl_entries=""
-num_users=${#ADDR[@]}
 for i in "${!ADDR[@]}"; do
   user="${ADDR[$i]}"
   acl_entries+="u:${user}:${PERMISSIONS},d:u:${user}:${PERMISSIONS}"
+  nav_acls+="u:${user}:--X"
   if (( i < num_users - 1 )); then
     acl_entries+=","
+    nav_acls+=","
   fi
 done
-
 
 # Print the setfacl command for the current directory
-echo "# Grant ${TYPE} (${PERMISSIONS}) access to the current directory and everything within"
-echo """  setfacl -R -m "${acl_entries}" "${DIR}" """ 
+echo -e "\e[34m# Grant ${TYPE} (${PERMISSIONS}) access to the current directory and everything within\e[0m"
+echo "  setfacl -R -m \"${acl_entries}\" \"${DIR}\" " 
 echo ""
-
-echo "# Grant only navigation permissions to the parent directories"
-
-acl_entries=""
-for i in "${!ADDR[@]}"; do
-  user="${ADDR[$i]}"
-  acl_entries+="u:${user}:--X"
-  if (( i < num_users - 1 )); then
-    acl_entries+=","
-  fi
-done
-
-while [[ "$DIR" != "/" ]]; do
+echo -e "\e[34m# Grant only navigation permissions to the parent directories\e[0m"
+while [[ "$(dirname "$DIR")" != "/" ]]; do
   parent_dir=$(dirname "$DIR")
-  if [[ "$(dirname $parent_dir)" == "/" ]]; then
-    break
-  fi
-  echo "  setfacl -m ${acl_entries} ${parent_dir} "
-  DIR=$parent_dir
+  echo "  setfacl -m ${nav_acls} \"${parent_dir}\""
+  DIR="$parent_dir"
 done
-
